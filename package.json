@@ -1,0 +1,25 @@
+{
+  "name": "social-scheduler",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "db:migrate": "pnpm --filter @social-scheduler/database migrate:dev",
+    "db:generate": "pnpm --filter @social-scheduler/database generate",
+    "db:studio": "pnpm --filter @social-scheduler/database studio",
+    "db:seed": "pnpm --filter @social-scheduler/database seed"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.1.0"
+}
