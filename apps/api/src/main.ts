@@ -1,13 +1,24 @@
 import { NestFactory } from '@nestjs/core'
 import { ValidationPipe } from '@nestjs/common'
+import { NestExpressApplication } from '@nestjs/platform-express'
 import { AppModule } from './app.module'
 import * as cookieParser from 'cookie-parser'
 import helmet from 'helmet'
+import { join } from 'path'
+import { existsSync, mkdirSync } from 'fs'
+
+// BigInt não é serializável por padrão no JSON — converte para string
+;(BigInt.prototype as any).toJSON = function () { return Number(this) }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule)
+  const app = await NestFactory.create<NestExpressApplication>(AppModule)
 
-  app.use(helmet())
+  // serve uploads locais (usado em dev sem S3)
+  const uploadsDir = join(process.cwd(), 'uploads')
+  if (!existsSync(uploadsDir)) mkdirSync(uploadsDir, { recursive: true })
+  app.useStaticAssets(uploadsDir, { prefix: '/uploads' })
+
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
   app.use(cookieParser())
 
   app.enableCors({

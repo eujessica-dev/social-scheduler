@@ -51,6 +51,7 @@ export class MediaService {
   }
 
   async upload(user: JwtPayload, file: Express.Multer.File, brandId?: string) {
+    if (!file) throw new BadRequestException('Nenhum arquivo enviado')
     this.validateFile(file)
 
     const isVideo = ALLOWED_VIDEO_TYPES.includes(file.mimetype)
