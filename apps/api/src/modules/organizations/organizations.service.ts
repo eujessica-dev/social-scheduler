@@ -1,4 +1,7 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
+import {
+  Injectable, NotFoundException, ForbiddenException,
+  ConflictException, BadRequestException,
+} from '@nestjs/common'
 import { PrismaService } from '../../config/prisma.service'
 import { JwtPayload } from '@social-scheduler/shared'
 
@@ -52,6 +55,34 @@ export class OrganizationsService {
     return this.prisma.organizationMember.update({
       where: { id: memberId },
       data: { role: role as any },
+    })
+  }
+
+  async inviteMember(user: JwtPayload, email: string, role: string) {
+    this.requireRole(user.role, ['owner', 'admin'])
+
+    const invitee = await this.prisma.user.findUnique({ where: { email } })
+    if (!invitee) throw new BadRequestException('Nenhum usuário com este e-mail encontrado')
+
+    if (invitee.id === user.sub) {
+      throw new BadRequestException('Você já é membro desta organização')
+    }
+
+    const existing = await this.prisma.organizationMember.findFirst({
+      where: { userId: invitee.id, organizationId: user.organizationId },
+    })
+    if (existing) throw new ConflictException('Usuário já é membro desta organização')
+
+    return this.prisma.organizationMember.create({
+      data: {
+        userId: invitee.id,
+        organizationId: user.organizationId,
+        role: role as any,
+        acceptedAt: new Date(),
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      },
     })
   }
 

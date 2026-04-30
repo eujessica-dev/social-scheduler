@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 
 const schema = z.object({
   brandId:          z.string().uuid('Selecione uma marca'),
+  title:            z.string().max(255).optional(),
   caption:          z.string().max(2200).optional(),
   hashtags:         z.string().optional(),
   scheduledAt:      z.string().optional(),
@@ -111,6 +112,12 @@ export default function NewPostPage() {
         {/* Conteúdo */}
         <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-3">
           <h3 className="font-medium text-gray-900 text-sm">Conteúdo</h3>
+          <input
+            {...register('title')}
+            type="text"
+            placeholder="Título interno (opcional)"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+          />
           <textarea
             {...register('caption')}
             rows={5}

@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common'
+import { Controller, Get, Patch, Delete, Post, Body, Param, UseGuards, HttpCode, HttpStatus } from '@nestjs/common'
 import { OrganizationsService } from './organizations.service'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
@@ -31,6 +31,15 @@ export class OrganizationsController {
     @Body() body: { role: string },
   ) {
     return this.orgs.updateMemberRole(user, memberId, body.role)
+  }
+
+  @Post('me/invite')
+  @HttpCode(HttpStatus.CREATED)
+  inviteMember(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { email: string; role: string },
+  ) {
+    return this.orgs.inviteMember(user, body.email, body.role)
   }
 
   @Delete('me/members/:memberId')
