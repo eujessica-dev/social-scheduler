@@ -11,6 +11,7 @@ import { PostsModule } from './modules/posts/posts.module'
 import { SchedulerModule } from './modules/scheduler/scheduler.module'
 import { MetricsModule } from './modules/metrics/metrics.module'
 import { BillingModule } from './modules/billing/billing.module'
+import { CreativesModule } from './modules/creatives/creatives.module'
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { BillingModule } from './modules/billing/billing.module'
     SchedulerModule,
     MetricsModule,
     BillingModule,
+    CreativesModule,
   ],
 })
 export class AppModule {}

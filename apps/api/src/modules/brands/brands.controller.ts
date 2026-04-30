@@ -1,7 +1,10 @@
 import {
   Controller, Get, Post, Patch, Delete,
   Body, Param, UseGuards, HttpCode, HttpStatus,
+  UseInterceptors, UploadedFile,
 } from '@nestjs/common'
+import { FileInterceptor } from '@nestjs/platform-express'
+import { memoryStorage } from 'multer'
 import { BrandsService } from './brands.service'
 import { CreateBrandDto } from './dto/create-brand.dto'
 import { UpdateBrandDto } from './dto/update-brand.dto'
@@ -32,6 +35,16 @@ export class BrandsController {
   @Patch(':id')
   update(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Body() dto: UpdateBrandDto) {
     return this.brands.update(user, id, dto)
+  }
+
+  @Post(':id/logo')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  uploadLogo(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.brands.uploadLogo(user, id, file)
   }
 
   @Delete(':id')

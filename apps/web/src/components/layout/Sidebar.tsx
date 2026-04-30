@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Calendar, Image, Share2,
-  Settings, LogOut, PlusCircle, BarChart2, CreditCard,
+  Settings, LogOut, PlusCircle, BarChart2, CreditCard, Briefcase,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth.store'
@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/auth.store'
 const nav = [
   { href: '/dashboard',                label: 'Dashboard',      icon: LayoutDashboard },
   { href: '/calendar',                 label: 'Calendário',     icon: Calendar },
+  { href: '/brands',                   label: 'Marcas',         icon: Briefcase },
   { href: '/media',                    label: 'Biblioteca',     icon: Image },
   { href: '/metrics',                  label: 'Métricas',       icon: BarChart2 },
   { href: '/settings/social-accounts', label: 'Contas Sociais', icon: Share2 },

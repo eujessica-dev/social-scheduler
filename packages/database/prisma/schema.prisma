@@ -73,6 +73,14 @@ enum JobStatus {
   cancelled
 }
 
+enum CreativeStatus {
+  draft
+  pending_approval
+  approved
+  rejected
+  archived
+}
+
 enum SubscriptionStatus {
   trialing
   active
@@ -110,6 +118,7 @@ model User {
   auditLogs           AuditLog[]
   invitedMembers      OrganizationMember[] @relation("InvitedBy")
   apiKeys             ApiKey[]
+  createdCreatives    Creative[]           @relation("CreativeCreatedBy")
 
   @@map("users")
 }
@@ -132,6 +141,7 @@ model Organization {
   socialAccounts SocialAccount[]
   mediaAssets    MediaAsset[]
   posts          Post[]
+  creatives      Creative[]
   subscription   Subscription?
   auditLogs      AuditLog[]
   whiteLabelSettings WhiteLabelSettings?
@@ -168,6 +178,9 @@ model Brand {
   name           String
   avatarUrl      String?  @map("avatar_url")
   color          String?
+  description    String?  @db.Text
+  website        String?
+  logoStorageKey String?  @map("logo_storage_key")
   createdById    String   @map("created_by")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
@@ -176,8 +189,85 @@ model Brand {
   socialAccounts SocialAccount[]
   mediaAssets    MediaAsset[]
   posts          Post[]
+  creatives      Creative[]
 
   @@map("brands")
+}
+
+// ─────────────────────────────────────────────
+// CREATIVES (criativos prontos para aprovação)
+// ─────────────────────────────────────────────
+
+model Creative {
+  id             String         @id @default(uuid())
+  organizationId String         @map("organization_id")
+  brandId        String         @map("brand_id")
+  title          String?
+  caption        String?        @db.Text
+  hashtags       String[]
+  status         CreativeStatus @default(draft)
+  aiPrompt       String?        @map("ai_prompt")
+  createdById    String         @map("created_by")
+  approvedAt     DateTime?      @map("approved_at")
+  rejectedAt     DateTime?      @map("rejected_at")
+  notes          String?        @db.Text
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brand          Brand             @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  createdBy      User              @relation("CreativeCreatedBy", fields: [createdById], references: [id])
+  media          CreativeMedia[]
+  approvals      CreativeApproval[]
+
+  @@index([organizationId, brandId])
+  @@index([organizationId, status])
+  @@map("creatives")
+}
+
+model CreativeMedia {
+  id           String     @id @default(uuid())
+  creativeId   String     @map("creative_id")
+  mediaAssetId String     @map("media_asset_id")
+  order        Int        @default(0)
+
+  creative     Creative   @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  mediaAsset   MediaAsset @relation(fields: [mediaAssetId], references: [id])
+
+  @@unique([creativeId, mediaAssetId])
+  @@map("creative_media")
+}
+
+model CreativeApproval {
+  id          String    @id @default(uuid())
+  creativeId  String    @map("creative_id")
+  token       String    @unique @default(uuid())
+  clientName  String?   @map("client_name")
+  clientEmail String?   @map("client_email")
+  expiresAt   DateTime  @map("expires_at")
+  approvedAt  DateTime? @map("approved_at")
+  rejectedAt  DateTime? @map("rejected_at")
+  feedback    String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  creative    Creative          @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  comments    CreativeComment[]
+
+  @@index([token])
+  @@map("creative_approvals")
+}
+
+model CreativeComment {
+  id         String   @id @default(uuid())
+  approvalId String   @map("approval_id")
+  authorName String   @map("author_name")
+  text       String   @db.Text
+  isInternal Boolean  @default(false) @map("is_internal")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  approval   CreativeApproval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+
+  @@map("creative_comments")
 }
 
 // ─────────────────────────────────────────────
@@ -246,6 +336,7 @@ model MediaAsset {
   brand          Brand?         @relation(fields: [brandId], references: [id])
   uploadedBy     User           @relation(fields: [uploadedById], references: [id])
   postMedia      PostMedia[]
+  creativeMedia  CreativeMedia[]
 
   @@map("media_assets")
 }

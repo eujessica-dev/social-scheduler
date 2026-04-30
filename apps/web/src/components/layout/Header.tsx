@@ -6,6 +6,7 @@ import { Bell } from 'lucide-react'
 const titles: Record<string, string> = {
   '/dashboard':                'Dashboard',
   '/calendar':                 'Calendário',
+  '/brands':                   'Marcas',
   '/media':                    'Biblioteca de Mídia',
   '/metrics':                  'Métricas',
   '/posts/new':                'Novo Post',
@@ -19,7 +20,19 @@ export function Header() {
 
   // rotas dinâmicas
   const isPostDetail = /^\/posts\/[^/]+$/.test(pathname) && pathname !== '/posts/new'
-  const title = isPostDetail ? 'Detalhes do Post' : (titles[pathname] ?? 'Social Scheduler')
+  const isBrandDetail = /^\/brands\/[^/]+$/.test(pathname)
+  const isCreativeNew = /^\/brands\/[^/]+\/creatives\/new$/.test(pathname)
+  const isCreativeDetail = /^\/brands\/[^/]+\/creatives\/[^/]+$/.test(pathname) && !isCreativeNew
+
+  const title = isCreativeNew
+    ? 'Novo Criativo'
+    : isCreativeDetail
+    ? 'Editar Criativo'
+    : isBrandDetail
+    ? 'Detalhes da Marca'
+    : isPostDetail
+    ? 'Detalhes do Post'
+    : (titles[pathname] ?? 'Social Scheduler')
 
   return (
     <header className="h-16 border-b border-gray-100 bg-white flex items-center justify-between px-6 sticky top-0 z-10">

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, MinLength, MaxLength, Matches } from 'class-validator'
+import { IsString, IsOptional, MinLength, MaxLength, Matches, IsUrl } from 'class-validator'
 
 export class CreateBrandDto {
   @IsString()
@@ -10,4 +10,13 @@ export class CreateBrandDto {
   @IsString()
   @Matches(/^#[0-9A-Fa-f]{6}$/, { message: 'color deve ser um hex válido (#rrggbb)' })
   color?: string
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string
+
+  @IsOptional()
+  @IsUrl({}, { message: 'website deve ser uma URL válida' })
+  website?: string
 }

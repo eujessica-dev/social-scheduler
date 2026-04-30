@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Loader2, Image as ImageIcon, X, CalendarClock } from 'lucide-react'
+import { Loader2, Image as ImageIcon, CalendarClock, Layers, CheckCircle2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -27,6 +27,14 @@ type FormData = z.infer<typeof schema>
 interface Brand    { id: string; name: string; color: string | null }
 interface Account  { id: string; accountName: string; platform: string; status: string }
 interface Media    { id: string; filename: string; url: string; mimeType: string }
+interface Creative {
+  id: string
+  title: string | null
+  caption: string | null
+  hashtags: string[]
+  status: string
+  media: { id: string; order: number; mediaAsset: Media }[]
+}
 
 const platformIcon: Record<string, string> = {
   instagram: '📸',
@@ -36,16 +44,21 @@ const platformIcon: Record<string, string> = {
 
 export default function NewPostPage() {
   const router = useRouter()
-  const [brands, setBrands]     = useState<Brand[]>([])
-  const [accounts, setAccounts] = useState<Account[]>([])
-  const [mediaList, setMedia]   = useState<Media[]>([])
-  const [selected, setSelected] = useState<string[]>([])
-  const [loading, setLoading]   = useState(false)
+  const [brands, setBrands]               = useState<Brand[]>([])
+  const [accounts, setAccounts]           = useState<Account[]>([])
+  const [mediaList, setMedia]             = useState<Media[]>([])
+  const [selected, setSelected]           = useState<string[]>([])
+  const [loading, setLoading]             = useState(false)
+  const [approvedCreatives, setApproved]  = useState<Creative[]>([])
+  const [selectedCreative, setSelectedCr] = useState<string | null>(null)
+  const [loadingCreatives, setLoadingCr]  = useState(false)
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { socialAccountIds: [], mediaAssetIds: [], timezone: 'America/Sao_Paulo' },
   })
+
+  const watchedBrandId = watch('brandId')
 
   useEffect(() => {
     Promise.all([
@@ -58,6 +71,38 @@ export default function NewPostPage() {
       setMedia(m.data)
     })
   }, [])
+
+  // Load approved creatives when brand changes
+  useEffect(() => {
+    if (!watchedBrandId) { setApproved([]); return }
+    setLoadingCr(true)
+    setSelectedCr(null)
+    api.get(`/brands/${watchedBrandId}/creatives`)
+      .then((res) => {
+        setApproved(res.data.filter((c: Creative) => c.status === 'approved'))
+      })
+      .finally(() => setLoadingCr(false))
+  }, [watchedBrandId])
+
+  const applyCreative = (c: Creative) => {
+    setSelectedCr(c.id)
+    setValue('title', c.title ?? '')
+    setValue('caption', c.caption ?? '')
+    setValue('hashtags', c.hashtags.join(' '))
+    const mediaIds = c.media
+      .sort((a, b) => a.order - b.order)
+      .map((m) => m.mediaAsset.id)
+    setSelected(mediaIds)
+    setValue('mediaAssetIds', mediaIds)
+    // also add assets to media list if not present
+    setMedia((prev) => {
+      const existingIds = new Set(prev.map((m) => m.id))
+      const newAssets = c.media
+        .filter((m) => !existingIds.has(m.mediaAsset.id))
+        .map((m) => m.mediaAsset)
+      return [...newAssets, ...prev]
+    })
+  }
 
   const toggleAccount = (id: string) => {
     const cur = watch('socialAccountIds') ?? []
@@ -108,6 +153,78 @@ export default function NewPostPage() {
           </select>
           {errors.brandId && <p className="text-red-500 text-xs">{errors.brandId.message}</p>}
         </div>
+
+        {/* Criativos aprovados */}
+        {watchedBrandId && (
+          <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Layers className="w-4 h-4 text-violet-500" />
+              <h3 className="font-medium text-gray-900 text-sm">Usar criativo aprovado</h3>
+              <span className="text-xs text-gray-400">(opcional)</span>
+            </div>
+
+            {loadingCreatives ? (
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Carregando criativos...
+              </div>
+            ) : approvedCreatives.length === 0 ? (
+              <p className="text-sm text-gray-400">
+                Nenhum criativo aprovado para esta marca.{' '}
+                <a href={`/brands/${watchedBrandId}`} className="text-violet-600 hover:underline">
+                  Criar criativo
+                </a>
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {approvedCreatives.map((c) => {
+                  const thumb = c.media[0]?.mediaAsset
+                  const isSelected = selectedCreative === c.id
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => applyCreative(c)}
+                      className={cn(
+                        'flex items-center gap-3 p-3 rounded-xl border text-left transition-all',
+                        isSelected
+                          ? 'border-violet-400 bg-violet-50 ring-1 ring-violet-400'
+                          : 'border-gray-200 hover:border-violet-300 hover:bg-violet-50/30',
+                      )}
+                    >
+                      {/* Thumb */}
+                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                        {thumb ? (
+                          thumb.mimeType.startsWith('video') ? (
+                            <video src={thumb.url} className="w-full h-full object-cover" muted />
+                          ) : (
+                            <img src={thumb.url} alt="" className="w-full h-full object-cover" />
+                          )
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Layers className="w-5 h-5 text-gray-300" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">
+                          {c.title ?? 'Sem título'}
+                        </p>
+                        {c.caption && (
+                          <p className="text-xs text-gray-400 truncate">{c.caption}</p>
+                        )}
+                        <p className="text-xs text-green-600 flex items-center gap-1 mt-0.5">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Aprovado
+                        </p>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Conteúdo */}
         <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-3">
