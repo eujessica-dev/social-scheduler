@@ -16,7 +16,10 @@ const titles: Record<string, string> = {
 
 export function Header() {
   const pathname = usePathname()
-  const title = titles[pathname] ?? 'Social Scheduler'
+
+  // rotas dinâmicas
+  const isPostDetail = /^\/posts\/[^/]+$/.test(pathname) && pathname !== '/posts/new'
+  const title = isPostDetail ? 'Detalhes do Post' : (titles[pathname] ?? 'Social Scheduler')
 
   return (
     <header className="h-16 border-b border-gray-100 bg-white flex items-center justify-between px-6 sticky top-0 z-10">
