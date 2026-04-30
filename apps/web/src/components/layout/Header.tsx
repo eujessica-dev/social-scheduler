@@ -4,12 +4,14 @@ import { usePathname } from 'next/navigation'
 import { Bell } from 'lucide-react'
 
 const titles: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/calendar': 'Calendário',
-  '/media': 'Biblioteca de Mídia',
-  '/posts/new': 'Novo Post',
-  '/settings': 'Configurações',
+  '/dashboard':                'Dashboard',
+  '/calendar':                 'Calendário',
+  '/media':                    'Biblioteca de Mídia',
+  '/metrics':                  'Métricas',
+  '/posts/new':                'Novo Post',
+  '/settings':                 'Configurações',
   '/settings/social-accounts': 'Contas Sociais',
+  '/billing':                  'Planos e Assinatura',
 }
 
 export function Header() {

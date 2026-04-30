@@ -4,17 +4,19 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Calendar, Image, Share2,
-  Settings, LogOut, PlusCircle,
+  Settings, LogOut, PlusCircle, BarChart2, CreditCard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth.store'
 
 const nav = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/calendar', label: 'Calendário', icon: Calendar },
-  { href: '/media', label: 'Biblioteca', icon: Image },
+  { href: '/dashboard',                label: 'Dashboard',      icon: LayoutDashboard },
+  { href: '/calendar',                 label: 'Calendário',     icon: Calendar },
+  { href: '/media',                    label: 'Biblioteca',     icon: Image },
+  { href: '/metrics',                  label: 'Métricas',       icon: BarChart2 },
   { href: '/settings/social-accounts', label: 'Contas Sociais', icon: Share2 },
-  { href: '/settings', label: 'Configurações', icon: Settings },
+  { href: '/settings',                 label: 'Configurações',  icon: Settings },
+  { href: '/billing',                  label: 'Planos',         icon: CreditCard },
 ]
 
 export function Sidebar() {
