@@ -26,7 +26,7 @@ export class MetricsService {
 
   // ── métricas por conta ────────────────────────────────────────────────
 
-  async getAccountMetrics(user: JwtPayload, accountId: string) {
+  async getAccountMetrics(user: JwtPayload, accountId: string): Promise<any> {
     const account = await this.prisma.socialAccount.findFirst({
       where: { id: accountId, organizationId: user.organizationId },
     })
@@ -43,7 +43,7 @@ export class MetricsService {
 
   // ── métricas por post ─────────────────────────────────────────────────
 
-  async getPostMetrics(user: JwtPayload, postId: string) {
+  async getPostMetrics(user: JwtPayload, postId: string): Promise<any> {
     const post = await this.prisma.post.findFirst({
       where: { id: postId, organizationId: user.organizationId },
       include: { platforms: true },
@@ -73,7 +73,7 @@ export class MetricsService {
 
   // ── coleta de métricas da Meta Graph API ──────────────────────────────
 
-  async collectMetrics(postPlatformId: string) {
+  async collectMetrics(postPlatformId: string): Promise<any> {
     const platform = await this.prisma.postPlatform.findUnique({
       where: { id: postPlatformId },
       include: {
@@ -116,7 +116,7 @@ export class MetricsService {
 
   // ── histórico de publicações ──────────────────────────────────────────
 
-  async getPublishingHistory(user: JwtPayload, limit = 20) {
+  async getPublishingHistory(user: JwtPayload, limit = 20): Promise<any> {
     return this.prisma.post.findMany({
       where: {
         organizationId: user.organizationId,

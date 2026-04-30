@@ -15,17 +15,17 @@ export class MetricsController {
   }
 
   @Get('history')
-  history(@CurrentUser() user: JwtPayload, @Query('limit') limit?: string) {
+  history(@CurrentUser() user: JwtPayload, @Query('limit') limit?: string): Promise<any> {
     return this.metrics.getPublishingHistory(user, limit ? parseInt(limit) : 20)
   }
 
   @Get('accounts/:accountId')
-  accountMetrics(@CurrentUser() user: JwtPayload, @Param('accountId') accountId: string) {
+  accountMetrics(@CurrentUser() user: JwtPayload, @Param('accountId') accountId: string): Promise<any> {
     return this.metrics.getAccountMetrics(user, accountId)
   }
 
   @Get('posts/:postId')
-  postMetrics(@CurrentUser() user: JwtPayload, @Param('postId') postId: string) {
+  postMetrics(@CurrentUser() user: JwtPayload, @Param('postId') postId: string): Promise<any> {
     return this.metrics.getPostMetrics(user, postId)
   }
 }
