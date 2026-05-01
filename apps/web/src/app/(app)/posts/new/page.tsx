@@ -9,10 +9,11 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import {
   Loader2, CalendarClock, Layers, CheckCircle2,
-  Upload, X, Image as ImageIcon, Film, Plus, Plug,
+  Upload, Image as ImageIcon, Film, Plus, Plug,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { SchedulePicker } from '@/components/SchedulePicker'
 
 const schema = z.object({
   brandId:          z.string().uuid('Selecione uma marca'),
@@ -116,6 +117,7 @@ export default function NewPostPage() {
   const [approvedCreatives, setApproved]  = useState<Creative[]>([])
   const [selectedCreative, setSelectedCr] = useState<string | null>(null)
   const [loadingCreatives, setLoadingCr]  = useState(false)
+  const [scheduledAt, setScheduledAt]     = useState('')
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -237,7 +239,12 @@ export default function NewPostPage() {
       const hashtags = data.hashtags
         ? data.hashtags.split(/[\s,]+/).filter(Boolean).map((h) => (h.startsWith('#') ? h : `#${h}`))
         : []
-      await api.post('/posts', { ...data, hashtags, mediaAssetIds: selectedIds })
+      await api.post('/posts', {
+        ...data,
+        hashtags,
+        mediaAssetIds: selectedIds,
+        scheduledAt: scheduledAt || undefined,
+      })
       toast.success('Post criado com sucesso!')
       router.push('/calendar')
     } catch (err: any) {
@@ -546,10 +553,12 @@ export default function NewPostPage() {
             <CalendarClock className="w-4 h-4 text-gray-400" />
             Agendamento (opcional)
           </h3>
-          <input
-            {...register('scheduledAt')}
-            type="datetime-local"
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+          <SchedulePicker
+            value={scheduledAt}
+            onChange={(v) => {
+              setScheduledAt(v)
+              setValue('scheduledAt', v)
+            }}
           />
           <textarea
             {...register('notes')}
