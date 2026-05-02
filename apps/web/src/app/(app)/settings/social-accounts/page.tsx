@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plug, Unplug, RefreshCw, CheckCircle2, AlertCircle, Clock } from 'lucide-react'
+import { Settings, Unplug, CheckCircle2, AlertCircle, Clock, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface SocialAccount {
@@ -16,18 +16,29 @@ interface SocialAccount {
   oauthToken: { expiresAt: string | null; scopes: string[] } | null
 }
 
-const platformConfig: Record<string, { label: string; color: string; icon: string }> = {
-  instagram: { label: 'Instagram', color: 'bg-gradient-to-br from-purple-500 to-pink-500', icon: '📸' },
-  facebook:  { label: 'Facebook',  color: 'bg-blue-600', icon: '👥' },
-  tiktok:    { label: 'TikTok',    color: 'bg-black', icon: '🎵' },
+// ── Configuração visual de cada plataforma ────────────────────────────────────
+const PLATFORM_CONFIG: Record<string, {
+  label: string
+  gradient: string         // gradiente do card conectado
+  iconBg: string           // fundo do ícone quando não conectado
+  emoji: string
+  available: boolean
+  tag?: string
+}> = {
+  instagram:  { label: 'Instagram',        gradient: 'from-purple-600 via-pink-500 to-orange-400', iconBg: 'bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400', emoji: '📸', available: true  },
+  facebook:   { label: 'Facebook',         gradient: 'from-blue-700 to-blue-500',                  iconBg: 'bg-blue-600',                                                  emoji: '👥', available: true  },
+  tiktok:     { label: 'TikTok',           gradient: 'from-gray-900 via-gray-800 to-black',         iconBg: 'bg-black',                                                     emoji: '🎵', available: false },
+  youtube:    { label: 'YouTube',          gradient: 'from-red-600 to-red-500',                     iconBg: 'bg-red-600',                                                   emoji: '▶️', available: false },
+  linkedin:   { label: 'LinkedIn Pages',   gradient: 'from-blue-800 to-sky-600',                    iconBg: 'bg-blue-700',                                                  emoji: '🔗', available: false },
+  pinterest:  { label: 'Pinterest',        gradient: 'from-red-600 to-pink-500',                    iconBg: 'bg-red-500',                                                   emoji: '📌', available: false },
+  threads:    { label: 'Threads',          gradient: 'from-gray-900 to-gray-700',                   iconBg: 'bg-gray-900',                                                  emoji: '🧵', available: false },
+  twitter:    { label: 'X (Twitter)',      gradient: 'from-gray-900 to-gray-800',                   iconBg: 'bg-black',                                                     emoji: '✖',  available: false },
+  google:     { label: 'Google Meu Neg.',  gradient: 'from-blue-500 to-green-500',                  iconBg: 'bg-gradient-to-br from-blue-500 to-green-500',                 emoji: '🏬', available: false },
+  analytics:  { label: 'Google Analytics', gradient: 'from-orange-500 to-yellow-400',               iconBg: 'bg-orange-500',                                                emoji: '📊', available: false },
 }
 
-const statusConfig: Record<string, { label: string; icon: typeof CheckCircle2; color: string }> = {
-  active:       { label: 'Conectada',    icon: CheckCircle2, color: 'text-green-600' },
-  disconnected: { label: 'Desconectada', icon: Unplug,       color: 'text-gray-400' },
-  expired:      { label: 'Expirada',     icon: Clock,        color: 'text-yellow-600' },
-  error:        { label: 'Erro',         icon: AlertCircle,  color: 'text-red-500' },
-}
+// Ordem de exibição
+const PLATFORM_ORDER = ['instagram','facebook','tiktok','youtube','linkedin','pinterest','threads','twitter','google','analytics']
 
 export default function SocialAccountsPage() {
   const [accounts, setAccounts] = useState<SocialAccount[]>([])
@@ -44,8 +55,13 @@ export default function SocialAccountsPage() {
 
   useEffect(() => { load() }, [])
 
-  const connectMeta = () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/social-accounts/meta/connect`
+  const connectMeta = async () => {
+    try {
+      const { data } = await api.get('/social-accounts/meta/connect')
+      window.location.href = data.url
+    } catch {
+      toast.error('Erro ao iniciar conexão. Tente novamente.')
+    }
   }
 
   const disconnect = async (id: string, name: string) => {
@@ -53,9 +69,7 @@ export default function SocialAccountsPage() {
     try {
       await api.delete(`/social-accounts/${id}`)
       toast.success('Conta desconectada')
-      setAccounts((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, status: 'disconnected' } : a)),
-      )
+      setAccounts((prev) => prev.filter((a) => a.id !== id))
     } catch {
       toast.error('Erro ao desconectar conta')
     }
@@ -69,94 +83,157 @@ export default function SocialAccountsPage() {
     )
   }
 
+  // Mapeia plataformas → conta ativa
+  const accountByPlatform = new Map<string, SocialAccount>()
+  for (const acc of accounts) {
+    if (acc.status === 'active') accountByPlatform.set(acc.platform, acc)
+  }
+
   return (
-    <div className="max-w-2xl space-y-6">
-      {/* Conectar nova conta */}
-      <div className="bg-white rounded-xl border border-gray-100 p-5">
-        <h3 className="font-semibold text-gray-900 text-sm mb-4">Conectar conta</h3>
-        <div className="grid grid-cols-3 gap-3">
-          <button
-            onClick={connectMeta}
-            className="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-xl hover:border-violet-400 hover:bg-violet-50/30 transition-all"
-          >
-            <span className="text-2xl">📸</span>
-            <span className="text-xs font-medium text-gray-700">Instagram</span>
-          </button>
-          <button
-            onClick={connectMeta}
-            className="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-xl hover:border-violet-400 hover:bg-violet-50/30 transition-all"
-          >
-            <span className="text-2xl">👥</span>
-            <span className="text-xs font-medium text-gray-700">Facebook</span>
-          </button>
-          <button
-            disabled
-            className="flex flex-col items-center gap-2 p-4 border border-gray-100 rounded-xl opacity-40 cursor-not-allowed"
-          >
-            <span className="text-2xl">🎵</span>
-            <span className="text-xs font-medium text-gray-700">TikTok</span>
-            <span className="text-xs text-gray-400">Em breve</span>
-          </button>
-        </div>
+    <div className="max-w-4xl space-y-6">
+      <div>
+        <h2 className="text-lg font-bold text-gray-900">Contas Sociais</h2>
+        <p className="text-sm text-gray-500 mt-0.5">Conecte suas redes sociais para agendar e publicar posts.</p>
       </div>
 
-      {/* Contas conectadas */}
-      <div className="bg-white rounded-xl border border-gray-100 p-5">
-        <h3 className="font-semibold text-gray-900 text-sm mb-4">
-          Contas conectadas ({accounts.length})
-        </h3>
+      {/* Grid de plataformas */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {PLATFORM_ORDER.map((platformId) => {
+          const cfg     = PLATFORM_CONFIG[platformId]
+          if (!cfg) return null
+          const account = accountByPlatform.get(platformId)
+          const isConnected = !!account
 
-        {accounts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <Plug className="w-10 h-10 text-gray-200 mb-3" />
-            <p className="text-gray-500 text-sm">Nenhuma conta conectada ainda.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {accounts.map((account) => {
-              const platform = platformConfig[account.platform]
-              const status   = statusConfig[account.status] ?? statusConfig.error
-              const StatusIcon = status.icon
-
-              return (
-                <div
-                  key={account.id}
-                  className="flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors"
+          // ── Card CONECTADO ──────────────────────────────────────────────
+          if (isConnected && account) {
+            return (
+              <div
+                key={platformId}
+                className={cn(
+                  'relative rounded-2xl overflow-hidden shadow-md',
+                  `bg-gradient-to-br ${cfg.gradient}`,
+                )}
+                style={{ minHeight: 160 }}
+              >
+                {/* Botão de configurações */}
+                <button
+                  onClick={() => disconnect(account.id, account.accountName)}
+                  title="Desconectar"
+                  className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors backdrop-blur-sm"
                 >
-                  {/* Avatar */}
-                  <div className={cn('w-10 h-10 rounded-full flex items-center justify-center text-white text-base flex-shrink-0', platform?.color ?? 'bg-gray-400')}>
+                  <Settings className="w-3.5 h-3.5 text-white" />
+                </button>
+
+                {/* Avatar + nome */}
+                <div className="p-4 pt-5 flex flex-col h-full">
+                  <div className="flex items-center gap-2 mb-auto">
                     {account.accountAvatar ? (
-                      <img src={account.accountAvatar} alt="" className="w-full h-full rounded-full object-cover" />
+                      <img src={account.accountAvatar} alt="" className="w-8 h-8 rounded-full object-cover border-2 border-white/40 flex-shrink-0" />
                     ) : (
-                      platform?.icon
+                      <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-base flex-shrink-0">
+                        {cfg.emoji}
+                      </div>
                     )}
+                    <p className="text-white text-xs font-semibold leading-tight line-clamp-2 flex-1 min-w-0">
+                      {account.accountName}
+                    </p>
                   </div>
 
-                  {/* Info */}
+                  {/* Badge CONECTADO */}
+                  <div className="mt-3">
+                    <span className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full">
+                      <CheckCircle2 className="w-2.5 h-2.5" />
+                      Conectado
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
+          // ── Card NÃO conectado ──────────────────────────────────────────
+          return (
+            <div
+              key={platformId}
+              className="relative rounded-2xl border border-gray-200 bg-white p-4 flex flex-col items-center gap-3 hover:border-gray-300 hover:shadow-sm transition-all"
+              style={{ minHeight: 160 }}
+            >
+              {/* Info icon */}
+              <button className="absolute top-2.5 right-2.5 text-gray-300 hover:text-gray-400 transition-colors">
+                <Info className="w-4 h-4" />
+              </button>
+
+              {/* Ícone da plataforma */}
+              <div className={cn('w-14 h-14 rounded-full flex items-center justify-center text-2xl text-white shadow-sm mt-1', cfg.iconBg)}>
+                {cfg.emoji}
+              </div>
+
+              <p className="text-sm font-medium text-gray-700 text-center leading-tight">{cfg.label}</p>
+
+              {cfg.available ? (
+                <button
+                  onClick={platformId === 'instagram' || platformId === 'facebook' ? connectMeta : undefined}
+                  className="mt-auto w-full py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                >
+                  Conectar
+                </button>
+              ) : (
+                <div className="mt-auto w-full py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-center">
+                  <span className="text-xs text-amber-600 font-semibold">Em breve</span>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Contas com problema (expiradas/erro) */}
+      {accounts.filter((a) => a.status !== 'active').length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <h3 className="font-semibold text-gray-900 text-sm mb-3 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-yellow-500" />
+            Contas com atenção necessária
+          </h3>
+          <div className="space-y-2">
+            {accounts.filter((a) => a.status !== 'active').map((account) => {
+              const cfg = PLATFORM_CONFIG[account.platform]
+              return (
+                <div key={account.id} className="flex items-center gap-3 p-3 rounded-xl border border-yellow-100 bg-yellow-50">
+                  <div className={cn('w-9 h-9 rounded-full flex items-center justify-center text-white text-base', cfg?.iconBg ?? 'bg-gray-400')}>
+                    {account.accountAvatar
+                      ? <img src={account.accountAvatar} alt="" className="w-full h-full rounded-full object-cover" />
+                      : cfg?.emoji
+                    }
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{account.accountName}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <StatusIcon className={cn('w-3 h-3', status.color)} />
-                      <span className={cn('text-xs', status.color)}>{status.label}</span>
-                      <span className="text-xs text-gray-300">·</span>
-                      <span className="text-xs text-gray-400 capitalize">{platform?.label}</span>
-                    </div>
+                    <p className="text-xs text-yellow-600 capitalize flex items-center gap-1">
+                      {account.status === 'expired' ? <Clock className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                      {account.status === 'expired' ? 'Token expirado' : 'Erro na conexão'}
+                    </p>
                   </div>
-
-                  {/* Ações */}
-                  <button
-                    onClick={() => disconnect(account.id, account.accountName)}
-                    className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors"
-                  >
-                    <Unplug className="w-3.5 h-3.5" />
-                    Desconectar
-                  </button>
+                  <div className="flex gap-2">
+                    {(account.platform === 'instagram' || account.platform === 'facebook') && (
+                      <button
+                        onClick={connectMeta}
+                        className="text-xs text-violet-600 hover:underline font-medium"
+                      >
+                        Reconectar
+                      </button>
+                    )}
+                    <button
+                      onClick={() => disconnect(account.id, account.accountName)}
+                      className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                    >
+                      <Unplug className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               )
             })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
