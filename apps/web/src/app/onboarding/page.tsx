@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, ArrowRight, X, Info } from 'lucide-react'
+import { Loader2, ArrowRight, X, Info, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/auth.store'
@@ -66,6 +66,26 @@ const PLATFORMS = [
   { id: 'google',    label: 'Google Meu Neg.', emoji: '🏬', gradient: 'from-blue-500 to-green-500',                 available: false },
 ]
 
+// Instruções passo a passo por plataforma
+const CONNECT_STEPS: Record<string, { title: string; steps: { icon: string; title: string; desc: string }[] }> = {
+  instagram: {
+    title: 'Conecte o Instagram',
+    steps: [
+      { icon: '📸', title: 'Faça login com o Instagram', desc: 'Antes de iniciar a conexão, abra uma nova aba do navegador e logue no Instagram com a conta que você irá gerenciar por aqui.' },
+      { icon: '🔄', title: 'Volte ao Social Scheduler e permita que a plataforma gerencie sua conta', desc: '' },
+      { icon: '🔗', title: 'Finalize o processo de conexão simplificada no Social Scheduler', desc: '*Disponível para a primeira conta do Instagram.' },
+    ],
+  },
+  facebook: {
+    title: 'Conecte o Facebook',
+    steps: [
+      { icon: '👥', title: 'Faça login com o Facebook', desc: 'Abra uma nova aba e faça login no Facebook com a conta que administra a Página que você quer conectar.' },
+      { icon: '🔄', title: 'Autorize o Social Scheduler', desc: 'Permita que a plataforma acesse e gerencie sua Página.' },
+      { icon: '🔗', title: 'Selecione a Página desejada', desc: 'Escolha qual Página do Facebook deseja conectar à sua conta.' },
+    ],
+  },
+}
+
 const FLOAT_ICONS = [
   { emoji: '📸', cls: 'top-[8%]    left-[18%]   bg-gradient-to-br from-purple-500 to-pink-500' },
   { emoji: '▶️', cls: 'top-[6%]    right-[16%]  bg-red-500' },
@@ -77,17 +97,19 @@ const FLOAT_ICONS = [
 ]
 
 // ── Tela exibida ─────────────────────────────────────────────────────
-type Screen = 'quiz' | 'welcome' | 'platforms'
+type Screen = 'quiz' | 'welcome' | 'platforms' | 'instructions'
 
 export default function OnboardingPage() {
   const router             = useRouter()
   const { user, setUser }  = useAuthStore()
 
   // Controla qual tela está visível
-  const [screen, setScreen]     = useState<Screen>('quiz')
-  const [step, setStep]         = useState(0)
-  const [answers, setAnswers]   = useState<Record<string, string>>({})
-  const [loading, setLoading]   = useState(false)
+  const [screen, setScreen]         = useState<Screen>('quiz')
+  const [step, setStep]             = useState(0)
+  const [answers, setAnswers]       = useState<Record<string, string>>({})
+  const [loading, setLoading]       = useState(false)
+  const [connectingPlatform, setConnectingPlatform] = useState('')
+  const [connectLoading, setConnectLoading]         = useState(false)
 
   // Ref: marca se estamos no meio do fluxo que o usuário acabou de concluir.
   // Enquanto true, NUNCA redirecionamos automaticamente.
@@ -138,17 +160,96 @@ export default function OnboardingPage() {
     router.push('/dashboard')
   }
 
-  const connectMeta = () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/social-accounts/meta/connect`
+  // Abre modal de instruções antes de ir ao OAuth
+  const openInstructions = (platformId: string) => {
+    setConnectingPlatform(platformId)
+    setScreen('instructions')
+  }
+
+  // Chama a API com JWT para obter a URL OAuth e redireciona
+  const connectMeta = async () => {
+    setConnectLoading(true)
+    try {
+      const { data } = await api.get('/social-accounts/meta/connect')
+      window.location.href = data.url
+    } catch {
+      toast.error('Erro ao iniciar conexão. Tente novamente.')
+      setConnectLoading(false)
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════
   // MODAL de boas-vindas / plataformas
   // ══════════════════════════════════════════════════════════════════
-  if (screen === 'welcome' || screen === 'platforms') {
+  if (screen === 'welcome' || screen === 'platforms' || screen === 'instructions') {
     return (
       // Fundo escurecido que NÃO pode ser clicado para fechar
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+
+        {/* ── INSTRUCTIONS ── */}
+        {screen === 'instructions' && (() => {
+          const info = CONNECT_STEPS[connectingPlatform] ?? CONNECT_STEPS['instagram']
+          const plat = PLATFORMS.find((p) => p.id === connectingPlatform)
+          return (
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-300">
+              <button onClick={() => setScreen('platforms')} className="absolute top-4 right-4 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
+                <X className="w-4 h-4 text-gray-600" />
+              </button>
+
+              {/* Header */}
+              <div className="flex items-center gap-3 px-6 pt-6 pb-4 border-b border-gray-100">
+                <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${plat?.gradient} flex items-center justify-center text-xl shadow`}>
+                  {plat?.emoji}
+                </div>
+                <h2 className="text-lg font-bold text-gray-900">{info.title}</h2>
+              </div>
+
+              {/* Passos */}
+              <div className="px-6 py-5 space-y-5">
+                {info.steps.map((s, i) => (
+                  <div key={i} className="flex gap-4">
+                    {/* Número + linha */}
+                    <div className="flex flex-col items-center gap-1">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                        i === 0 ? 'bg-violet-100 text-violet-700' :
+                        i === 1 ? 'bg-orange-100 text-orange-600' :
+                                  'bg-teal-100 text-teal-600'
+                      }`}>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                          i === 0 ? 'bg-violet-500' : i === 1 ? 'bg-orange-500' : 'bg-teal-500'
+                        }`}>
+                          {i + 1}
+                        </div>
+                      </div>
+                      {i < info.steps.length - 1 && <div className="w-0.5 h-6 bg-gray-200 rounded-full" />}
+                    </div>
+                    {/* Texto */}
+                    <div className="pb-1">
+                      <p className="text-sm font-semibold text-gray-900">{s.title}</p>
+                      {s.desc && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{s.desc}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Botões */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+                <button onClick={() => setScreen('platforms')} className="text-sm text-gray-500 hover:text-gray-700 underline">
+                  Cancelar
+                </button>
+                <button
+                  onClick={connectMeta}
+                  disabled={connectLoading}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors"
+                >
+                  {connectLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  Continuar
+                  {!connectLoading && <ChevronRight className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* ── WELCOME ── */}
         {screen === 'welcome' && (
@@ -249,7 +350,7 @@ export default function OnboardingPage() {
                       </div>
                       <span className="text-sm font-semibold text-gray-800">{platform.label}</span>
                       <button
-                        onClick={connectMeta}
+                        onClick={() => openInstructions(platform.id)}
                         className="w-full py-2 rounded-xl text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors"
                       >
                         Conectar

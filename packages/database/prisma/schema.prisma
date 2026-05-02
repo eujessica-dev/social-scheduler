@@ -601,3 +601,20 @@ model WhiteLabelSettings {
 
   @@map("white_label_settings")
 }
+
+// ─────────────────────────────────────────────
+// PENDING OAUTH CONNECTIONS
+// ─────────────────────────────────────────────
+
+model PendingConnection {
+  id             String    @id @default(uuid())
+  token          String    @unique @default(uuid())
+  organizationId String    @map("organization_id")
+  platform       String
+  accountsJson   String    @db.Text @map("accounts_json")
+  expiresAt      DateTime  @map("expires_at")
+  usedAt         DateTime? @map("used_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@map("pending_connections")
+}

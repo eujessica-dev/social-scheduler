@@ -1,11 +1,12 @@
 import {
   Controller, Get, Delete, Post,
-  Param, Query, Res, UseGuards, HttpCode, HttpStatus, Req,
+  Param, Query, Body, Res, UseGuards, HttpCode, HttpStatus,
 } from '@nestjs/common'
-import { Response, Request } from 'express'
+import { Response } from 'express'
 import { SocialAccountsService } from './social-accounts.service'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
+import { Public } from '../../common/decorators/public.decorator'
 import { JwtPayload } from '@social-scheduler/shared'
 
 @Controller('social-accounts')
@@ -18,26 +19,50 @@ export class SocialAccountsController {
     return this.service.findAll(user)
   }
 
-  // ── Static/named routes MUST come before :id to avoid being swallowed ──────
-
+  // ── Meta OAuth ── passo 1: retorna URL (requer JWT) ──────────────
+  // O frontend chama via axios e então faz window.location.href = url
   @Get('meta/connect')
-  connectMeta(@CurrentUser() user: JwtPayload, @Res() res: Response) {
+  connectMeta(@CurrentUser() user: JwtPayload) {
     const url = this.service.buildMetaOAuthUrl(user.organizationId)
-    res.redirect(url)
+    return { url }
   }
 
+  // ── Meta OAuth ── passo 2: callback (PUBLIC) ─────────────────────
+  // Meta redireciona aqui após o usuário autorizar; não usa JWT
+  @Public()
   @Get('meta/callback')
   async metaCallback(
     @Query('code') code: string,
     @Query('state') state: string,
-    @CurrentUser() user: JwtPayload,
     @Res() res: Response,
   ) {
-    await this.service.handleMetaCallback(code, state, user.organizationId)
-    res.redirect(`${process.env.FRONTEND_URL}/settings/social-accounts?connected=true`)
+    try {
+      const redirectUrl = await this.service.handleMetaCallback(code, state)
+      res.redirect(redirectUrl)
+    } catch (err: any) {
+      const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000'
+      res.redirect(`${frontendUrl}/connect/select?error=${encodeURIComponent(err.message ?? 'Erro desconhecido')}`)
+    }
   }
 
-  // ── Parameterized routes come last ──────────────────────────────────────────
+  // ── Meta OAuth ── passo 3: busca contas pendentes (PUBLIC) ────────
+  @Public()
+  @Get('meta/pending/:token')
+  getPending(@Param('token') token: string) {
+    return this.service.getPendingAccounts(token)
+  }
+
+  // ── Meta OAuth ── passo 4: finalizar seleção (requer JWT) ─────────
+  @Post('meta/finalize')
+  @HttpCode(HttpStatus.OK)
+  finalize(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { token: string; platformUserId: string },
+  ) {
+    return this.service.finalizeConnection(user, body.token, body.platformUserId)
+  }
+
+  // ── Parameterized routes por último ──────────────────────────────
 
   @Get(':id')
   findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
