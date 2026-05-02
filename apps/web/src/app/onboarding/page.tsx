@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, ArrowRight, Check, X, Info } from 'lucide-react'
+import { Loader2, ArrowRight, X, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/auth.store'
@@ -53,69 +53,78 @@ const STEP_COLORS = [
   { bg: 'bg-emerald-50', border: 'border-emerald-200', selected: 'bg-emerald-600 border-emerald-600 text-white', dot: 'bg-emerald-600', icon: 'bg-emerald-100 text-emerald-600' },
 ]
 
-// ── Plataformas disponíveis para conectar ───────────────────────────
+// ── Plataformas ──────────────────────────────────────────────────────
 const PLATFORMS = [
-  // ativas
-  { id: 'instagram', label: 'Instagram',      emoji: '📸',  gradient: 'from-purple-500 via-pink-500 to-orange-400', available: true  },
-  { id: 'facebook',  label: 'Facebook',       emoji: '👥',  gradient: 'from-blue-600 to-blue-500',                  available: true  },
-  { id: 'tiktok',    label: 'TikTok',         emoji: '🎵',  gradient: 'from-gray-900 to-gray-800',                  available: true  },
-  // em breve
-  { id: 'youtube',   label: 'YouTube',        emoji: '▶️',  gradient: 'from-red-600 to-red-500',                    available: false },
-  { id: 'linkedin',  label: 'LinkedIn',       emoji: '🔗',  gradient: 'from-blue-700 to-sky-600',                   available: false },
-  { id: 'pinterest', label: 'Pinterest',      emoji: '📌',  gradient: 'from-red-500 to-pink-500',                   available: false },
-  { id: 'threads',   label: 'Threads',        emoji: '🧵',  gradient: 'from-gray-900 to-gray-700',                  available: false },
-  { id: 'twitter',   label: 'X (Twitter)',    emoji: '✖',   gradient: 'from-gray-900 to-gray-800',                  available: false },
+  { id: 'instagram', label: 'Instagram',       emoji: '📸', gradient: 'from-purple-500 via-pink-500 to-orange-400', available: true  },
+  { id: 'facebook',  label: 'Facebook',        emoji: '👥', gradient: 'from-blue-600 to-blue-500',                  available: true  },
+  { id: 'tiktok',    label: 'TikTok',          emoji: '🎵', gradient: 'from-gray-900 to-gray-800',                  available: false },
+  { id: 'youtube',   label: 'YouTube',         emoji: '▶️', gradient: 'from-red-600 to-red-500',                    available: false },
+  { id: 'linkedin',  label: 'LinkedIn',        emoji: '🔗', gradient: 'from-blue-700 to-sky-600',                   available: false },
+  { id: 'pinterest', label: 'Pinterest',       emoji: '📌', gradient: 'from-red-500 to-pink-500',                   available: false },
+  { id: 'threads',   label: 'Threads',         emoji: '🧵', gradient: 'from-gray-900 to-gray-700',                  available: false },
+  { id: 'twitter',   label: 'X (Twitter)',     emoji: '✖',  gradient: 'from-gray-900 to-gray-800',                  available: false },
   { id: 'google',    label: 'Google Meu Neg.', emoji: '🏬', gradient: 'from-blue-500 to-green-500',                 available: false },
 ]
 
-// Ícones flutuantes para a tela de boas-vindas
 const FLOAT_ICONS = [
-  { emoji: '📸', style: 'top-[8%]  left-[20%]  bg-gradient-to-br from-purple-500 to-pink-500' },
-  { emoji: '▶️', style: 'top-[5%]  right-[18%] bg-red-500' },
-  { emoji: '🔗', style: 'top-[42%] left-[5%]   bg-blue-700' },
-  { emoji: '🎵', style: 'bottom-[12%] left-[22%] bg-gray-900' },
-  { emoji: '👥', style: 'bottom-[8%]  right-[22%] bg-blue-600' },
-  { emoji: '📊', style: 'top-[42%] right-[5%]  bg-orange-500' },
-  { emoji: '📌', style: 'bottom-[30%] right-[14%] bg-red-500' },
+  { emoji: '📸', cls: 'top-[8%]    left-[18%]   bg-gradient-to-br from-purple-500 to-pink-500' },
+  { emoji: '▶️', cls: 'top-[6%]    right-[16%]  bg-red-500' },
+  { emoji: '🔗', cls: 'top-[44%]   left-[4%]    bg-blue-700' },
+  { emoji: '🎵', cls: 'bottom-[10%] left-[20%]  bg-gray-900' },
+  { emoji: '👥', cls: 'bottom-[8%]  right-[20%] bg-blue-600' },
+  { emoji: '📊', cls: 'top-[44%]   right-[4%]   bg-orange-500' },
+  { emoji: '📌', cls: 'bottom-[28%] right-[12%] bg-red-500' },
 ]
 
-// ── Tipos de modal ───────────────────────────────────────────────────
-type ModalView = 'welcome' | 'platforms'
+// ── Tela exibida ─────────────────────────────────────────────────────
+type Screen = 'quiz' | 'welcome' | 'platforms'
 
 export default function OnboardingPage() {
-  const router = useRouter()
-  const { user, setUser } = useAuthStore()
+  const router             = useRouter()
+  const { user, setUser }  = useAuthStore()
 
+  // Controla qual tela está visível
+  const [screen, setScreen]     = useState<Screen>('quiz')
   const [step, setStep]         = useState(0)
   const [answers, setAnswers]   = useState<Record<string, string>>({})
   const [loading, setLoading]   = useState(false)
-  const [modal, setModal]       = useState<ModalView | null>(null)
 
-  // Só redireciona se o modal NÃO estiver aberto — evita fechar o modal
-  // imediatamente após setar onboardingCompletedAt no store
+  // Ref: marca se estamos no meio do fluxo que o usuário acabou de concluir.
+  // Enquanto true, NUNCA redirecionamos automaticamente.
+  const inFlow = useRef(false)
+
+  // Redireciona apenas no carregamento inicial, se onboarding já foi feito
+  // e o usuário não está no meio do fluxo agora
   useEffect(() => {
-    if (user?.onboardingCompletedAt && modal === null) {
+    if (inFlow.current) return
+    if (user?.onboardingCompletedAt) {
       router.replace('/dashboard')
     }
-  }, [user, router, modal])
+  }) // sem deps = roda a cada render, mas o ref bloqueia após iniciar o fluxo
 
   const current  = STEPS[step]
   const colors   = STEP_COLORS[step]
-  const selected = answers[current.id]
+  const selected = answers[current?.id ?? '']
   const isLast   = step === STEPS.length - 1
 
-  const handleSelect = (value: string) => setAnswers((p) => ({ ...p, [current.id]: value }))
+  const handleSelect = (value: string) =>
+    setAnswers((p) => ({ ...p, [current.id]: value }))
 
   const handleNext = async () => {
     if (!selected) return
-    if (!isLast) { setStep((s) => s + 1); return }
 
-    // Último passo — salva preferências e abre modal
-    // NÃO atualiza o store aqui para não disparar o useEffect acima
+    if (!isLast) {
+      setStep((s) => s + 1)
+      return
+    }
+
+    // Último passo — salva e exibe o modal
     setLoading(true)
     try {
       await api.post('/auth/onboarding', { ...answers, [current.id]: selected })
-      setModal('welcome')
+      // A partir daqui estamos "em fluxo": o ref bloqueia qualquer redirect automático
+      inFlow.current = true
+      setScreen('welcome')
     } catch {
       toast.error('Não foi possível salvar suas preferências. Tente novamente.')
     } finally {
@@ -123,8 +132,8 @@ export default function OnboardingPage() {
     }
   }
 
-  // Atualiza store e navega — só chamado pelo usuário, não pelo useEffect
   const goToDashboard = () => {
+    // Atualiza store e navega explicitamente
     if (user) setUser({ ...user, onboardingCompletedAt: new Date().toISOString() })
     router.push('/dashboard')
   }
@@ -133,69 +142,71 @@ export default function OnboardingPage() {
     window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/social-accounts/meta/connect`
   }
 
-  // ── Modal de conexão ─────────────────────────────────────────────
-  if (modal) {
+  // ══════════════════════════════════════════════════════════════════
+  // MODAL de boas-vindas / plataformas
+  // ══════════════════════════════════════════════════════════════════
+  if (screen === 'welcome' || screen === 'platforms') {
     return (
-      <div className="min-h-screen bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 fixed inset-0 z-50">
+      // Fundo escurecido que NÃO pode ser clicado para fechar
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
 
-        {/* ── VIEW 1: Boas-vindas / convite para conectar ── */}
-        {modal === 'welcome' && (
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden">
+        {/* ── WELCOME ── */}
+        {screen === 'welcome' && (
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-300">
             {/* Botão fechar */}
             <button
               onClick={goToDashboard}
-              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              className="absolute top-4 right-4 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 hover:bg-gray-100 shadow transition-colors"
+              aria-label="Fechar"
             >
               <X className="w-4 h-4 text-gray-600" />
             </button>
 
             {/* Área gráfica com ícones flutuantes */}
-            <div className="relative h-64 bg-gradient-to-br from-violet-50 to-indigo-100 flex items-center justify-center overflow-hidden">
-              {/* Círculos decorativos */}
-              <div className="absolute w-48 h-48 rounded-full border-2 border-dashed border-violet-200 opacity-60" />
-              <div className="absolute w-72 h-72 rounded-full border border-violet-100 opacity-40" />
+            <div className="relative h-60 bg-gradient-to-br from-violet-50 via-indigo-50 to-purple-100 flex items-center justify-center overflow-hidden">
+              <div className="absolute w-44 h-44 rounded-full border-2 border-dashed border-violet-200/70" />
+              <div className="absolute w-68 h-68 rounded-full border border-violet-100/50" style={{ width: 272, height: 272 }} />
 
-              {/* Ícones flutuando */}
               {FLOAT_ICONS.map((ic, i) => (
                 <div
                   key={i}
-                  className={`absolute w-11 h-11 rounded-full flex items-center justify-center text-xl shadow-lg text-white ${ic.style}`}
-                  style={{ animation: `float ${2.5 + i * 0.4}s ease-in-out infinite alternate` }}
+                  className={`absolute w-11 h-11 rounded-full flex items-center justify-center text-xl shadow-lg text-white ${ic.cls}`}
+                  style={{ animation: `floatIcon ${2.4 + i * 0.35}s ease-in-out infinite alternate` }}
                 >
                   {ic.emoji}
                 </div>
               ))}
 
               {/* Card central */}
-              <div className="relative z-10 bg-white rounded-2xl shadow-md px-6 py-4 flex flex-col items-center gap-2 border border-gray-100">
+              <div className="relative z-10 bg-white rounded-2xl shadow-lg px-6 py-4 flex flex-col items-center gap-2 border border-violet-100">
                 <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center text-xl">🔗</div>
                 <span className="text-sm font-semibold text-gray-800">Rede Social</span>
-                <button className="mt-0.5 px-4 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium rounded-lg transition-colors">
+                <div className="mt-0.5 px-4 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-lg">
                   Conectar
-                </button>
+                </div>
               </div>
             </div>
 
-            {/* Texto e ações */}
-            <div className="p-8 text-center">
+            {/* Texto */}
+            <div className="px-8 py-7 text-center">
               <h2 className="text-xl font-bold text-gray-900 leading-snug mb-2">
                 Conecte uma rede social para utilizar{' '}
-                <span className="text-violet-600">TODAS as funcionalidades</span>
-                {' '}do Social Scheduler!
+                <span className="text-violet-600">TODAS as funcionalidades</span>{' '}
+                do Social Scheduler!
               </h2>
-              <p className="text-sm text-gray-500 mb-6">
+              <p className="text-sm text-gray-500 mb-7">
                 Clique em Conectar rede social e faça sua primeira conexão. Vamos lá?
               </p>
 
               <div className="flex items-center justify-center gap-3">
                 <button
                   onClick={goToDashboard}
-                  className="px-5 py-2.5 text-sm text-violet-600 font-medium hover:underline transition-colors"
+                  className="px-5 py-2.5 text-sm text-violet-600 font-medium hover:underline"
                 >
                   Fazer isso depois
                 </button>
                 <button
-                  onClick={() => setModal('platforms')}
+                  onClick={() => setScreen('platforms')}
                   className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm shadow-violet-200"
                 >
                   Conectar rede social →
@@ -205,11 +216,11 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* ── VIEW 2: Grid de plataformas ── */}
-        {modal === 'platforms' && (
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-3xl z-10">
+        {/* ── PLATFORMS ── */}
+        {screen === 'platforms' && (
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col animate-in fade-in zoom-in-95 duration-300">
+            {/* Header fixo */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
               <div>
                 <h2 className="font-bold text-gray-900 text-lg">Conectar rede social</h2>
                 <p className="text-xs text-gray-400 mt-0.5">Escolha a plataforma que deseja conectar</p>
@@ -217,80 +228,85 @@ export default function OnboardingPage() {
               <button
                 onClick={goToDashboard}
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+                aria-label="Fechar"
               >
                 <X className="w-4 h-4 text-gray-600" />
               </button>
             </div>
 
-            {/* Grid de plataformas */}
-            <div className="p-6">
+            {/* Conteúdo com scroll */}
+            <div className="overflow-y-auto flex-1 p-6 space-y-6">
               {/* Disponíveis */}
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Disponíveis</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-                {PLATFORMS.filter((p) => p.available).map((platform) => (
-                  <div
-                    key={platform.id}
-                    className="border border-gray-200 rounded-2xl p-4 flex flex-col items-center gap-3 hover:border-violet-300 hover:shadow-sm transition-all"
-                  >
-                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${platform.gradient} flex items-center justify-center text-2xl shadow`}>
-                      {platform.emoji}
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                  Disponíveis para conectar
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {PLATFORMS.filter((p) => p.available).map((platform) => (
+                    <div key={platform.id} className="border border-gray-200 rounded-2xl p-4 flex flex-col items-center gap-3 hover:border-violet-300 hover:shadow-sm transition-all">
+                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${platform.gradient} flex items-center justify-center text-2xl shadow`}>
+                        {platform.emoji}
+                      </div>
+                      <span className="text-sm font-semibold text-gray-800">{platform.label}</span>
+                      <button
+                        onClick={connectMeta}
+                        className="w-full py-2 rounded-xl text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors"
+                      >
+                        Conectar
+                      </button>
                     </div>
-                    <span className="text-sm font-semibold text-gray-800">{platform.label}</span>
-                    <button
-                      onClick={platform.id === 'instagram' || platform.id === 'facebook' ? connectMeta : undefined}
-                      disabled={platform.id === 'tiktok'}
-                      className={`w-full py-2 rounded-xl text-xs font-semibold transition-colors ${
-                        platform.id === 'tiktok'
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-violet-600 hover:bg-violet-700 text-white'
-                      }`}
-                    >
-                      {platform.id === 'tiktok' ? 'Em breve' : 'Conectar'}
-                    </button>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
               {/* Em breve */}
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Em breve</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {PLATFORMS.filter((p) => !p.available).map((platform) => (
-                  <div
-                    key={platform.id}
-                    className="border border-gray-100 rounded-2xl p-4 flex flex-col items-center gap-3 opacity-60"
-                  >
-                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${platform.gradient} flex items-center justify-center text-2xl shadow`}>
-                      {platform.emoji}
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                  Em breve
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {PLATFORMS.filter((p) => !p.available).map((platform) => (
+                    <div key={platform.id} className="border border-gray-100 rounded-2xl p-4 flex flex-col items-center gap-3 opacity-55">
+                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${platform.gradient} flex items-center justify-center text-2xl shadow`}>
+                        {platform.emoji}
+                      </div>
+                      <span className="text-sm font-semibold text-gray-700">{platform.label}</span>
+                      <div className="w-full flex items-center justify-center py-1.5 rounded-xl bg-amber-50 border border-amber-200">
+                        <span className="text-xs text-amber-600 font-semibold">Em breve</span>
+                      </div>
                     </div>
-                    <span className="text-sm font-semibold text-gray-700">{platform.label}</span>
-                    <div className="w-full flex items-center justify-center gap-1 py-1.5 rounded-xl bg-amber-50 border border-amber-200">
-                      <span className="text-xs text-amber-600 font-semibold">Em breve</span>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Rodapé */}
-            <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-3 rounded-b-3xl flex items-center justify-between">
-              <p className="text-xs text-gray-400 flex items-center gap-1">
+            {/* Rodapé fixo */}
+            <div className="shrink-0 border-t border-gray-100 px-6 py-3 flex items-center justify-between bg-white rounded-b-3xl">
+              <p className="text-xs text-gray-400 flex items-center gap-1.5">
                 <Info className="w-3.5 h-3.5" />
                 Você pode conectar mais contas depois em Configurações
               </p>
-              <button
-                onClick={goToDashboard}
-                className="text-xs text-gray-500 hover:text-gray-700 font-medium transition-colors"
-              >
+              <button onClick={goToDashboard} className="text-xs text-violet-600 hover:underline font-medium">
                 Ir para o dashboard →
               </button>
             </div>
           </div>
         )}
+
+        {/* Animação dos ícones flutuantes */}
+        <style>{`
+          @keyframes floatIcon {
+            from { transform: translateY(0px)   rotate(-4deg); }
+            to   { transform: translateY(-14px) rotate(4deg);  }
+          }
+        `}</style>
       </div>
     )
   }
 
-  // ── Quiz ──────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════
+  // QUIZ
+  // ══════════════════════════════════════════════════════════════════
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
       {/* Logo */}
@@ -349,30 +365,27 @@ export default function OnboardingPage() {
           onClick={handleNext}
           disabled={!selected || loading}
           className={`w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl font-semibold text-sm transition-all ${
-            selected && !loading ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-sm shadow-violet-200' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            selected && !loading
+              ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-sm shadow-violet-200'
+              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
           }`}
         >
-          {loading ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</>
-          ) : (
-            <>{isLast ? 'Iniciar período de teste' : 'Continuar'} <ArrowRight className="w-4 h-4" /></>
-          )}
+          {loading
+            ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</>
+            : <>{isLast ? 'Iniciar período de teste' : 'Continuar'} <ArrowRight className="w-4 h-4" /></>
+          }
         </button>
 
         {step > 0 && (
-          <button type="button" onClick={() => setStep((s) => s - 1)} className="w-full mt-2 py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors">
+          <button
+            type="button"
+            onClick={() => setStep((s) => s - 1)}
+            className="w-full mt-2 py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+          >
             ← Voltar
           </button>
         )}
       </div>
-
-      {/* CSS animation para ícones flutuantes (inline fallback) */}
-      <style>{`
-        @keyframes float {
-          from { transform: translateY(0px) rotate(-3deg); }
-          to   { transform: translateY(-12px) rotate(3deg); }
-        }
-      `}</style>
     </div>
   )
 }
