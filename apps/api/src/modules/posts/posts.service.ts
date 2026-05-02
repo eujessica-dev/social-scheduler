@@ -4,6 +4,7 @@ import {
 import { InjectQueue } from '@nestjs/bull'
 import { Queue } from 'bull'
 import { PrismaService } from '../../config/prisma.service'
+import { StorageService } from '../media/storage.service'
 import { JwtPayload } from '@social-scheduler/shared'
 import { QUEUE_NAMES } from '@social-scheduler/shared'
 import { CreatePostDto } from './dto/create-post.dto'
@@ -13,11 +14,24 @@ import { UpdatePostDto } from './dto/update-post.dto'
 export class PostsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
     @InjectQueue(QUEUE_NAMES.PUBLISHING) private readonly publishingQueue: Queue,
   ) {}
 
+  private async hydratePostMedia(post: any) {
+    const media = await Promise.all(
+      (post.media ?? []).map(async (m: any) => ({
+        ...m,
+        mediaAsset: m.mediaAsset
+          ? { ...m.mediaAsset, url: await this.storage.getSignedUrl(m.mediaAsset.storageKey) }
+          : null,
+      })),
+    )
+    return { ...post, media }
+  }
+
   async findAll(user: JwtPayload, filters?: { brandId?: string; status?: string }) {
-    return this.prisma.post.findMany({
+    const posts = await this.prisma.post.findMany({
       where: {
         organizationId: user.organizationId,
         ...(filters?.brandId ? { brandId: filters.brandId } : {}),
@@ -34,6 +48,8 @@ export class PostsService {
       },
       orderBy: { scheduledAt: 'asc' },
     })
+
+    return Promise.all(posts.map((p) => this.hydratePostMedia(p)))
   }
 
   async findOne(user: JwtPayload, id: string) {
