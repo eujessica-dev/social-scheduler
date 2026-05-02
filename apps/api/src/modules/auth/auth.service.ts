@@ -30,7 +30,13 @@ export class AuthService {
 
     const user = await this.prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
-        data: { name: dto.name, email: dto.email, passwordHash },
+        data: {
+          name: dto.name,
+          email: dto.email,
+          passwordHash,
+          phone: dto.phone ?? null,
+          whatsappOptIn: dto.whatsappOptIn ?? false,
+        },
       })
 
       const org = await tx.organization.create({

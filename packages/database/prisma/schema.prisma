@@ -103,6 +103,8 @@ model User {
   name                String
   email               String    @unique
   passwordHash        String    @map("password_hash")
+  phone               String?   @map("phone")
+  whatsappOptIn       Boolean   @default(false) @map("whatsapp_opt_in")
   emailVerifiedAt     DateTime? @map("email_verified_at")
   twoFactorEnabled    Boolean   @default(false) @map("two_factor_enabled")
   twoFactorSecret     String?   @map("two_factor_secret")
