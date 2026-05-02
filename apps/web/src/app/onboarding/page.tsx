@@ -91,9 +91,13 @@ export default function OnboardingPage() {
   const [loading, setLoading]   = useState(false)
   const [modal, setModal]       = useState<ModalView | null>(null)
 
+  // Só redireciona se o modal NÃO estiver aberto — evita fechar o modal
+  // imediatamente após setar onboardingCompletedAt no store
   useEffect(() => {
-    if (user?.onboardingCompletedAt) router.replace('/dashboard')
-  }, [user, router])
+    if (user?.onboardingCompletedAt && modal === null) {
+      router.replace('/dashboard')
+    }
+  }, [user, router, modal])
 
   const current  = STEPS[step]
   const colors   = STEP_COLORS[step]
@@ -106,11 +110,11 @@ export default function OnboardingPage() {
     if (!selected) return
     if (!isLast) { setStep((s) => s + 1); return }
 
-    // Último passo — salva preferências e abre modal de conexão
+    // Último passo — salva preferências e abre modal
+    // NÃO atualiza o store aqui para não disparar o useEffect acima
     setLoading(true)
     try {
       await api.post('/auth/onboarding', { ...answers, [current.id]: selected })
-      if (user) setUser({ ...user, onboardingCompletedAt: new Date().toISOString() })
       setModal('welcome')
     } catch {
       toast.error('Não foi possível salvar suas preferências. Tente novamente.')
@@ -119,7 +123,11 @@ export default function OnboardingPage() {
     }
   }
 
-  const goToDashboard = () => router.push('/dashboard')
+  // Atualiza store e navega — só chamado pelo usuário, não pelo useEffect
+  const goToDashboard = () => {
+    if (user) setUser({ ...user, onboardingCompletedAt: new Date().toISOString() })
+    router.push('/dashboard')
+  }
 
   const connectMeta = () => {
     window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/social-accounts/meta/connect`
