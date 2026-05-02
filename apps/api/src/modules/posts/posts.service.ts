@@ -58,6 +58,13 @@ export class PostsService {
 
     await this.validateSocialAccounts(user.organizationId, dto.socialAccountIds)
 
+    // fetch real platforms for each selected account
+    const socialAccounts = await this.prisma.socialAccount.findMany({
+      where: { id: { in: dto.socialAccountIds } },
+      select: { id: true, platform: true },
+    })
+    const platformByAccount = new Map(socialAccounts.map((a) => [a.id, a.platform]))
+
     const post = await this.prisma.post.create({
       data: {
         organizationId: user.organizationId,
@@ -73,7 +80,7 @@ export class PostsService {
         platforms: {
           create: dto.socialAccountIds.map((socialAccountId) => ({
             socialAccountId,
-            platform: 'instagram' as any,
+            platform: platformByAccount.get(socialAccountId) ?? 'instagram',
             status: 'pending',
           })),
         },

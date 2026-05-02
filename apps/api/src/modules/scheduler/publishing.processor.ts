@@ -50,11 +50,13 @@ export class PublishingProcessor {
     const allSuccess = results.every((r) => r.status === 'fulfilled')
     const anySuccess = results.some((r) => r.status === 'fulfilled')
 
+    // Post is "published" if at least one platform succeeded; "failed" only if all failed
     await this.prisma.post.update({
       where: { id: postId },
-      data: { status: allSuccess ? 'published' : anySuccess ? 'published' : 'failed' },
+      data: { status: anySuccess ? 'published' : 'failed' },
     })
 
+    // Job is "completed" only if every platform succeeded
     await this.prisma.scheduledJob.updateMany({
       where: { postId },
       data: { status: allSuccess ? 'completed' : 'failed' },

@@ -18,10 +18,7 @@ export class SocialAccountsController {
     return this.service.findAll(user)
   }
 
-  @Get(':id')
-  findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.service.findOne(user, id)
-  }
+  // ── Static/named routes MUST come before :id to avoid being swallowed ──────
 
   @Get('meta/connect')
   connectMeta(@CurrentUser() user: JwtPayload, @Res() res: Response) {
@@ -38,6 +35,13 @@ export class SocialAccountsController {
   ) {
     await this.service.handleMetaCallback(code, state, user.organizationId)
     res.redirect(`${process.env.FRONTEND_URL}/settings/social-accounts?connected=true`)
+  }
+
+  // ── Parameterized routes come last ──────────────────────────────────────────
+
+  @Get(':id')
+  findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.service.findOne(user, id)
   }
 
   @Delete(':id')

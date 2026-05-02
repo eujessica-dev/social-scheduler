@@ -3,6 +3,9 @@ import { OrganizationsService } from './organizations.service'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import { JwtPayload } from '@social-scheduler/shared'
+import { UpdateOrganizationDto } from './dto/update-organization.dto'
+import { UpdateMemberRoleDto } from './dto/update-member-role.dto'
+import { InviteMemberDto } from './dto/invite-member.dto'
 
 @Controller('organizations')
 @UseGuards(JwtAuthGuard)
@@ -15,8 +18,8 @@ export class OrganizationsController {
   }
 
   @Patch('me')
-  updateOrg(@CurrentUser() user: JwtPayload, @Body() body: { name?: string }) {
-    return this.orgs.updateOrganization(user, body)
+  updateOrg(@CurrentUser() user: JwtPayload, @Body() dto: UpdateOrganizationDto) {
+    return this.orgs.updateOrganization(user, dto)
   }
 
   @Get('me/members')
@@ -28,18 +31,18 @@ export class OrganizationsController {
   updateRole(
     @CurrentUser() user: JwtPayload,
     @Param('memberId') memberId: string,
-    @Body() body: { role: string },
+    @Body() dto: UpdateMemberRoleDto,
   ) {
-    return this.orgs.updateMemberRole(user, memberId, body.role)
+    return this.orgs.updateMemberRole(user, memberId, dto.role)
   }
 
   @Post('me/invite')
   @HttpCode(HttpStatus.CREATED)
   inviteMember(
     @CurrentUser() user: JwtPayload,
-    @Body() body: { email: string; role: string },
+    @Body() dto: InviteMemberDto,
   ) {
-    return this.orgs.inviteMember(user, body.email, body.role)
+    return this.orgs.inviteMember(user, dto.email, dto.role)
   }
 
   @Delete('me/members/:memberId')

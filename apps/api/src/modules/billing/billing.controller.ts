@@ -7,6 +7,7 @@ import { BillingService } from './billing.service'
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import { JwtPayload } from '@social-scheduler/shared'
+import { CreateCheckoutDto } from './dto/create-checkout.dto'
 
 @Controller('billing')
 export class BillingController {
@@ -22,9 +23,9 @@ export class BillingController {
   @UseGuards(JwtAuthGuard)
   createCheckout(
     @CurrentUser() user: JwtPayload,
-    @Body() body: { plan: string; gateway: string },
+    @Body() dto: CreateCheckoutDto,
   ) {
-    return this.billing.createCheckout(user, body.plan, body.gateway)
+    return this.billing.createCheckout(user, dto.plan, dto.gateway)
   }
 
   @Post('cancel')
