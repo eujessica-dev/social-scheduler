@@ -31,5 +31,6 @@ export interface UserProfile {
   avatarUrl: string | null
   emailVerifiedAt: Date | null
   twoFactorEnabled: boolean
+  onboardingCompletedAt: Date | null
   createdAt: Date
 }

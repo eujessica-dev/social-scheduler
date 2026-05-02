@@ -100,7 +100,8 @@ export default function RegisterPage() {
       })
       setTokens(res.data.accessToken, meRes.data)
       toast.success('Conta criada! Bem-vinda ao Social Scheduler.')
-      router.push('/dashboard')
+      // Redireciona para onboarding em contas novas
+      router.push('/onboarding')
     } catch (err: any) {
       toast.error(err.response?.data?.message ?? 'Erro ao criar conta')
     } finally {

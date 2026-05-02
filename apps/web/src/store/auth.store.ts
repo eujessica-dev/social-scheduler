@@ -5,8 +5,10 @@ import { api } from '@/lib/api'
 interface AuthUser {
   sub: string
   email: string
+  name?: string
   organizationId: string
   role: string
+  onboardingCompletedAt?: string | null
 }
 
 interface AuthState {
@@ -14,6 +16,7 @@ interface AuthState {
   accessToken: string | null
   isLoading: boolean
   setTokens: (accessToken: string, user: AuthUser) => void
+  setUser: (user: AuthUser) => void
   logout: () => Promise<void>
   initialize: () => Promise<void>
 }
@@ -29,6 +32,8 @@ export const useAuthStore = create<AuthState>()(
         localStorage.setItem('access_token', accessToken)
         set({ user, accessToken })
       },
+
+      setUser: (user) => set({ user }),
 
       logout: async () => {
         try {

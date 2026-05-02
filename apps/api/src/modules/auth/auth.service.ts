@@ -107,6 +107,34 @@ export class AuthService {
     return this.issueTokens(stored.user, member!.organizationId, member!.role)
   }
 
+  async getMe(user: JwtPayload) {
+    const dbUser = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+        emailVerifiedAt: true,
+        twoFactorEnabled: true,
+        onboardingCompletedAt: true,
+        createdAt: true,
+      },
+    })
+    return { ...user, ...dbUser }
+  }
+
+  async completeOnboarding(userId: string, data: Record<string, any>) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        onboardingCompletedAt: new Date(),
+        onboardingData: data,
+      },
+    })
+    return { ok: true }
+  }
+
   async logout(token: string) {
     const tokenHash = this.hashToken(token)
     await this.prisma.refreshToken.updateMany({

@@ -72,6 +72,13 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: JwtPayload) {
-    return user
+    return this.auth.getMe(user)
+  }
+
+  @Post('onboarding')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  onboarding(@CurrentUser() user: JwtPayload, @Body() body: Record<string, any>) {
+    return this.auth.completeOnboarding(user.sub, body)
   }
 }

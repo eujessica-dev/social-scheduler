@@ -38,7 +38,12 @@ export default function LoginPage() {
         headers: { Authorization: `Bearer ${res.data.accessToken}` },
       })
       setTokens(res.data.accessToken, meRes.data)
-      router.push('/dashboard')
+      // Se onboarding não foi feito ainda, redireciona para lá
+      if (!meRes.data.onboardingCompletedAt) {
+        router.push('/onboarding')
+      } else {
+        router.push('/dashboard')
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message ?? 'E-mail ou senha incorretos')
     } finally {

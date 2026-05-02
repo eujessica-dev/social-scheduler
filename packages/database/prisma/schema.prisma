@@ -105,6 +105,8 @@ model User {
   passwordHash        String    @map("password_hash")
   phone               String?   @map("phone")
   whatsappOptIn       Boolean   @default(false) @map("whatsapp_opt_in")
+  onboardingCompletedAt DateTime? @map("onboarding_completed_at")
+  onboardingData      Json?     @map("onboarding_data")
   emailVerifiedAt     DateTime? @map("email_verified_at")
   twoFactorEnabled    Boolean   @default(false) @map("two_factor_enabled")
   twoFactorSecret     String?   @map("two_factor_secret")
