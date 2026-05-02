@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import {
   Loader2, CalendarClock, Layers, CheckCircle2,
   Upload, Image as ImageIcon, Film, Plus, Plug,
+  ChevronDown, X, Check,
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -29,7 +30,7 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-interface Brand   { id: string; name: string; color: string | null }
+interface Brand   { id: string; name: string; color: string | null; logoUrl?: string | null }
 interface Account { id: string; accountName: string; platform: string; status: string }
 interface Media   { id: string; filename: string; url: string; mimeType: string }
 interface Creative {
@@ -98,6 +99,137 @@ function MediaThumb({
         </div>
       )}
     </button>
+  )
+}
+
+// ─── Brand Avatar ─────────────────────────────────────────────────────────────
+function BrandAvatar({ brand, size = 'sm' }: { brand: Brand; size?: 'sm' | 'md' }) {
+  const dim = size === 'md' ? 'w-8 h-8 text-sm' : 'w-6 h-6 text-xs'
+  if (brand.logoUrl) {
+    return (
+      <img
+        src={brand.logoUrl}
+        alt={brand.name}
+        className={cn(dim, 'rounded-full object-cover flex-shrink-0')}
+      />
+    )
+  }
+  return (
+    <div
+      className={cn(dim, 'rounded-full flex items-center justify-center font-bold text-white flex-shrink-0')}
+      style={{ backgroundColor: brand.color ?? '#7c3aed' }}
+    >
+      {brand.name.charAt(0).toUpperCase()}
+    </div>
+  )
+}
+
+// ─── Brand Select (chip-style) ────────────────────────────────────────────────
+function BrandSelect({
+  brands,
+  value,
+  onChange,
+  error,
+}: {
+  brands: Brand[]
+  value: string
+  onChange: (id: string) => void
+  error?: string
+}) {
+  const [open, setOpen]       = useState(false)
+  const [search, setSearch]   = useState('')
+  const ref                   = useRef<HTMLDivElement>(null)
+  const selected              = brands.find((b) => b.id === value) ?? null
+  const filtered              = brands.filter((b) =>
+    b.name.toLowerCase().includes(search.toLowerCase()),
+  )
+
+  // Fecha ao clicar fora
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          'w-full flex items-center gap-2 px-3 py-2.5 border rounded-xl text-sm transition-all text-left',
+          open
+            ? 'border-violet-500 ring-2 ring-violet-200'
+            : error
+              ? 'border-red-400'
+              : 'border-gray-200 hover:border-violet-300',
+        )}
+      >
+        {selected ? (
+          /* Chip da marca selecionada */
+          <div className="flex items-center gap-2 bg-gray-100 rounded-lg pl-2 pr-1.5 py-1 min-w-0">
+            {/* × para limpar */}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onChange(''); setSearch('') }}
+              className="text-gray-400 hover:text-gray-600 flex-shrink-0 transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+            <BrandAvatar brand={selected} size="sm" />
+            <span className="text-sm font-medium text-gray-800 truncate">{selected.name}</span>
+          </div>
+        ) : (
+          <span className="text-gray-400 flex-1">Selecione uma marca</span>
+        )}
+        <ChevronDown className={cn('w-4 h-4 text-gray-400 ml-auto flex-shrink-0 transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+          {/* Search */}
+          {brands.length > 5 && (
+            <div className="p-2 border-b border-gray-100">
+              <input
+                autoFocus
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar marca..."
+                className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400"
+              />
+            </div>
+          )}
+
+          <div className="max-h-52 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-4">Nenhuma marca encontrada</p>
+            ) : (
+              filtered.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => { onChange(b.id); setOpen(false); setSearch('') }}
+                  className={cn(
+                    'w-full flex items-center gap-2.5 px-3 py-2 hover:bg-violet-50 transition-colors text-left',
+                    value === b.id && 'bg-violet-50',
+                  )}
+                >
+                  <BrandAvatar brand={b} size="md" />
+                  <span className="flex-1 text-sm text-gray-800 font-medium truncate">{b.name}</span>
+                  {value === b.id && <Check className="w-4 h-4 text-violet-600 flex-shrink-0" />}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+    </div>
   )
 }
 
@@ -261,16 +393,12 @@ export default function NewPostPage() {
         {/* ── Marca ─────────────────────────────────────────────────────── */}
         <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-3">
           <h3 className="font-medium text-gray-900 text-sm">Marca / Cliente</h3>
-          <select
-            {...register('brandId')}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-          >
-            <option value="">Selecione uma marca</option>
-            {brands.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-          {errors.brandId && <p className="text-red-500 text-xs">{errors.brandId.message}</p>}
+          <BrandSelect
+            brands={brands}
+            value={watchedBrandId ?? ''}
+            onChange={(id) => setValue('brandId', id, { shouldValidate: true })}
+            error={errors.brandId?.message}
+          />
         </div>
 
         {/* ── Criativos aprovados ───────────────────────────────────────── */}
